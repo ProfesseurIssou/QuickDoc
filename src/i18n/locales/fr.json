@@ -29,6 +29,7 @@
     "left": "Gauche",
     "right": "Droite",
     "language": "Langue",
+    "launchAtStartup": "Lancer au démarrage",
     "keybindings": "Raccourcis clavier",
     "pressKeys": "Appuyez sur les touches…",
     "reset": "Réinitialiser",

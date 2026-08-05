@@ -29,6 +29,7 @@
     "left": "Left",
     "right": "Right",
     "language": "Language",
+    "launchAtStartup": "Launch at startup",
     "keybindings": "Keybindings",
     "pressKeys": "Press keys…",
     "reset": "Reset to defaults",

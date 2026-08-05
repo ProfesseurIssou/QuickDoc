@@ -1,6 +1,7 @@
 // Settings page: panel side, language, and a keybinding editor.
 
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import KeyCapture from "../components/KeyCapture";
 import { DEFAULT_KEYBINDINGS, KeybindingMap, PanelSide } from "../lib/types";
@@ -26,6 +27,7 @@ export default function Settings({
   const [panelSide, setPanelSide] = useState<PanelSide>("right");
   const [locale, setLocale] = useState(i18n.language ?? "en");
   const [bindings, setBindings] = useState<KeybindingMap>({ ...DEFAULT_KEYBINDINGS });
+  const [autostart, setAutostart] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -38,6 +40,11 @@ export default function Settings({
         setBindings({ ...DEFAULT_KEYBINDINGS, ...JSON.parse(settings.keybindings ?? "{}") });
       } catch {
         setBindings({ ...DEFAULT_KEYBINDINGS });
+      }
+      try {
+        setAutostart(await invoke<boolean>("autostart_enabled"));
+      } catch {
+        // Non-fatal: the plugin isn't available (e.g. unsupported platform).
       }
     })();
   }, []);
@@ -53,6 +60,16 @@ export default function Settings({
     await setSetting("locale", loc);
     await i18n.changeLanguage(loc);
     onLocaleChange(loc);
+  };
+
+  const toggleAutostart = async (enabled: boolean) => {
+    setAutostart(enabled);
+    try {
+      await invoke(enabled ? "enable_autostart" : "disable_autostart");
+    } catch {
+      // Roll back the optimistic update on failure.
+      setAutostart(!enabled);
+    }
   };
 
   const changeBinding = async (action: string, binding: string) => {
@@ -91,6 +108,15 @@ export default function Settings({
             </option>
           ))}
         </select>
+      </section>
+
+      <section className="settings-row">
+        <label>{t("settings.launchAtStartup")}</label>
+        <input
+          type="checkbox"
+          checked={autostart}
+          onChange={(e) => void toggleAutostart(e.target.checked)}
+        />
       </section>
 
       <section className="settings-keybindings">

@@ -23,6 +23,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{
     Builder as ShortcutBuilder, GlobalShortcutExt, Shortcut, ShortcutState,
 };
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 use crate::window::PanelSide;
 
@@ -61,6 +62,26 @@ fn toggle_panel(app: AppHandle, window: WebviewWindow) -> tauri::Result<()> {
 #[tauri::command]
 fn hide_panel(window: WebviewWindow) -> tauri::Result<()> {
     window.hide()
+}
+
+/// Enable launching QuickDoc at OS startup.
+#[tauri::command]
+fn enable_autostart(app: AppHandle) -> Result<(), String> {
+    app.autolaunch().enable().map_err(|e| e.to_string())
+}
+
+/// Disable launching QuickDoc at OS startup. Returns the previous state.
+#[tauri::command]
+fn disable_autostart(app: AppHandle) -> Result<bool, String> {
+    let was_enabled = app.autolaunch().is_enabled().unwrap_or(false);
+    app.autolaunch().disable().map_err(|e| e.to_string())?;
+    Ok(was_enabled)
+}
+
+/// Whether QuickDoc is currently registered to launch at OS startup.
+#[tauri::command]
+fn autostart_enabled(app: AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +200,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(())
         .setup(|app| {
             // Tray menu: Open, Settings, Quit.
@@ -240,6 +265,9 @@ pub fn run() {
             dock_window,
             toggle_panel,
             hide_panel,
+            enable_autostart,
+            disable_autostart,
+            autostart_enabled,
             save_attachment_bytes,
             attachments_dir_path,
             render_export_markdown,

@@ -1,0 +1,64 @@
+{
+  "app": {
+    "name": "QuickDoc",
+    "tagline": "Instant notes, zero friction"
+  },
+  "editor": {
+    "placeholder": "Type a note… (Ctrl+Enter to save, Esc to hide)",
+    "save": "Save",
+    "preview": "Preview",
+    "write": "Write",
+    "emptyHistory": "No notes yet."
+  },
+  "projects": {
+    "title": "Projects",
+    "new": "New project",
+    "rename": "Rename",
+    "delete": "Delete",
+    "namePrompt": "Project name",
+    "confirmDelete": "Delete this project and all its notes?"
+  },
+  "attachments": {
+    "paste": "Paste image",
+    "import": "Import image",
+    "videoComingSoon": "Video: coming soon"
+  },
+  "settings": {
+    "title": "Settings",
+    "panelSide": "Panel side",
+    "left": "Left",
+    "right": "Right",
+    "language": "Language",
+    "launchAtStartup": "Launch at startup",
+    "keybindings": "Keybindings",
+    "pressKeys": "Press keys…",
+    "reset": "Reset to defaults",
+    "back": "Back",
+    "actions": {
+      "toggle_panel": "Toggle panel",
+      "save_note": "Save note",
+      "cycle_projects": "Cycle projects",
+      "select_project_1": "Select project 1",
+      "select_project_2": "Select project 2",
+      "select_project_3": "Select project 3",
+      "select_project_4": "Select project 4",
+      "select_project_5": "Select project 5",
+      "select_project_6": "Select project 6",
+      "select_project_7": "Select project 7",
+      "select_project_8": "Select project 8",
+      "select_project_9": "Select project 9"
+    }
+  },
+  "export": {
+    "title": "Export",
+    "markdown": "Export Markdown",
+    "html": "Export HTML",
+    "saved": "Saved to {{path}}",
+    "failed": "Export failed"
+  },
+  "tray": {
+    "open": "Open",
+    "settings": "Settings",
+    "quit": "Quit"
+  }
+}

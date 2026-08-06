@@ -1,0 +1,64 @@
+{
+  "app": {
+    "name": "QuickDoc",
+    "tagline": "Notes instantanées, sans friction"
+  },
+  "editor": {
+    "placeholder": "Saisissez une note… (Ctrl+Entrée pour enregistrer, Échap pour masquer)",
+    "save": "Enregistrer",
+    "preview": "Aperçu",
+    "write": "Écrire",
+    "emptyHistory": "Aucune note pour le moment."
+  },
+  "projects": {
+    "title": "Projets",
+    "new": "Nouveau projet",
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "namePrompt": "Nom du projet",
+    "confirmDelete": "Supprimer ce projet et toutes ses notes ?"
+  },
+  "attachments": {
+    "paste": "Coller une image",
+    "import": "Importer une image",
+    "videoComingSoon": "Vidéo : bientôt disponible"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "panelSide": "Côté du panneau",
+    "left": "Gauche",
+    "right": "Droite",
+    "language": "Langue",
+    "launchAtStartup": "Lancer au démarrage",
+    "keybindings": "Raccourcis clavier",
+    "pressKeys": "Appuyez sur les touches…",
+    "reset": "Réinitialiser",
+    "back": "Retour",
+    "actions": {
+      "toggle_panel": "Afficher/Masquer le panneau",
+      "save_note": "Enregistrer la note",
+      "cycle_projects": "Parcourir les projets",
+      "select_project_1": "Sélectionner le projet 1",
+      "select_project_2": "Sélectionner le projet 2",
+      "select_project_3": "Sélectionner le projet 3",
+      "select_project_4": "Sélectionner le projet 4",
+      "select_project_5": "Sélectionner le projet 5",
+      "select_project_6": "Sélectionner le projet 6",
+      "select_project_7": "Sélectionner le projet 7",
+      "select_project_8": "Sélectionner le projet 8",
+      "select_project_9": "Sélectionner le projet 9"
+    }
+  },
+  "export": {
+    "title": "Exporter",
+    "markdown": "Exporter en Markdown",
+    "html": "Exporter en HTML",
+    "saved": "Enregistré dans {{path}}",
+    "failed": "Échec de l'export"
+  },
+  "tray": {
+    "open": "Ouvrir",
+    "settings": "Paramètres",
+    "quit": "Quitter"
+  }
+}

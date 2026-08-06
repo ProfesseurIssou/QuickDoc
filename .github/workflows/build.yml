@@ -18,10 +18,12 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancel superseded runs on the same ref to save CI minutes.
+# Cancel superseded runs on the same branch to save CI minutes — but keep each
+# event type in its own group so a pull_request run never cancels the push@main
+# run (we always want main artifacts/releases).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:

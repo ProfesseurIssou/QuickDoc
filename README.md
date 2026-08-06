@@ -23,8 +23,8 @@ self-contained HTML file.
 
 ## Tech stack
 
-- **Backend:** Rust + [Tauri 2](https://tauri.app/) (SQLite via `tauri-plugin-sql`,
-  global shortcuts, clipboard, dialog, fs, autostart).
+- **Backend:** Rust + [Tauri 2](https://tauri.app/) (SQLite via [Diesel](https://diesel.rs/)
+  with embedded migrations, global shortcuts, clipboard, dialog, fs, autostart).
 - **Frontend:** React 19 + TypeScript, Vite, [`@uiw/react-md-editor`](https://github.com/uiwjs/react-md-editor),
   [`react-i18next`](https://react.i18next.com/).
 
@@ -62,10 +62,12 @@ Installers / bundle artifacts are written to `src-tauri/target/release/bundle/`.
   - `attachments.rs` — safe filenames + MIME kinds (tested).
   - `export.rs` — Markdown + HTML rendering (tested).
   - `settings.rs` — default settings contract.
-- `src-tauri/migrations/001_init.sql` — schema (projects, notes, attachments, settings).
+- `src-tauri/src/db.rs` — Diesel connection, models, and typed CRUD.
+- `src-tauri/src/schema.rs` — Diesel `table!` schema mirroring the migration.
+- `src-tauri/migrations/20250805000000_initial/` — initial schema (projects, notes, attachments, settings).
 
-Settings live in SQLite and are owned by the frontend; the Rust side receives
-values it needs (e.g. the panel side) as command arguments.
+All persistence runs through Diesel on the Rust side; the frontend talks to it
+via `db_*` Tauri commands in `src/lib/db.ts` (no direct SQL on the JS side).
 
 ## Testing
 

@@ -1,0 +1,99 @@
+# Builds QuickDoc natively on Windows, macOS, and Linux using GitHub-hosted runners.
+#
+# Two modes, same workflow:
+#   • Push to main / PR / manual run  → builds installers and uploads them as
+#     downloadable workflow artifacts (grab the latest .exe/.msi anytime).
+#   • Push a tag like `v0.1.0`        → additionally publishes a (draft) GitHub
+#     Release with the installers attached.
+#
+# Running the GUI locally in WSL is painful (no WSLg); this lets you get a
+# real Windows build without leaving the browser.
+
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri on Linux needs the WebKit/GTK system libraries.
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      # Caches the src-tauri/target dir so subsequent builds are minutes, not ~15.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Builds the frontend (vite) + the Rust binary + the per-OS installer.
+      # On a tag push it also creates a draft GitHub Release and attaches the
+      # installers. On other events it just builds (artifacts uploaded below).
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Empty on non-tag runs → no release is created.
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: "QuickDoc ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # Always expose the built installers as downloadable artifacts, even on
+      # plain pushes/PRs, so you can grab the latest Windows .msi/.exe anytime.
+      - name: Upload installers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickDoc-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.AppImage
+          if-no-files-found: warn

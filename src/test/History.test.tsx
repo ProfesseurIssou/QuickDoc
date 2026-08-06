@@ -76,4 +76,26 @@ describe("History", () => {
     );
     expect(screen.getByTestId("attachment")).toHaveTextContent("abc.png");
   });
+
+  it("renders notes in the given (oldest-first) order in the DOM", () => {
+    // Notes are already ordered oldest-first by the backend; History must not
+    // reorder them, so the DOM order matches the input order.
+    render(
+      <History
+        notes={[
+          note({ id: 1, content_md: "first" }),
+          note({ id: 2, content_md: "second" }),
+          note({ id: 3, content_md: "third" }),
+        ]}
+        onDelete={vi.fn()}
+      />,
+    );
+    const rendered = screen.getAllByTestId("md").map((el) => el.textContent);
+    expect(rendered).toEqual(["first", "second", "third"]);
+  });
+
+  it("renders the scrollable history list container", () => {
+    render(<History notes={[note()]} onDelete={vi.fn()} />);
+    expect(document.querySelector("ul.history")).toBeInTheDocument();
+  });
 });

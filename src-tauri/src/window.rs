@@ -81,6 +81,25 @@ pub fn dock_primary(app: &AppHandle, side: PanelSide) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Resolve the dock side from the persisted `panel_side` setting, falling back
+/// to the default when the key is missing or unreadable. Split out so the DB
+/// resolution is unit-testable without a live app.
+pub fn resolve_side(conn: &mut diesel::prelude::SqliteConnection) -> PanelSide {
+    crate::db::get_setting(conn, crate::settings::keys::PANEL_SIDE)
+        .ok()
+        .flatten()
+        .map(|s| PanelSide::parse(&s))
+        .unwrap_or_default()
+}
+
+/// Read the persisted side from the DB and dock the main window to it.
+pub fn dock_primary_from_db(
+    app: &AppHandle,
+    conn: &mut diesel::prelude::SqliteConnection,
+) -> tauri::Result<()> {
+    dock_primary(app, resolve_side(conn))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,5 +135,26 @@ mod tests {
         assert_eq!(PanelSide::parse("left"), PanelSide::Left);
         assert_eq!(PanelSide::parse("RIGHT"), PanelSide::Right);
         assert_eq!(PanelSide::parse("garbage"), PanelSide::Right);
+    }
+
+    #[test]
+    fn resolve_side_reads_persisted_value() {
+        let (_f, mut conn) = crate::db::tests::test_db();
+        crate::db::set_setting(&mut conn, crate::settings::keys::PANEL_SIDE, "left").unwrap();
+        assert_eq!(resolve_side(&mut conn), PanelSide::Left);
+    }
+
+    #[test]
+    fn resolve_side_defaults_when_unset() {
+        let (_f, mut conn) = crate::db::tests::test_db();
+        // No panel_side override: seeded default is "right".
+        assert_eq!(resolve_side(&mut conn), PanelSide::Right);
+    }
+
+    #[test]
+    fn resolve_side_defaults_on_garbage() {
+        let (_f, mut conn) = crate::db::tests::test_db();
+        crate::db::set_setting(&mut conn, crate::settings::keys::PANEL_SIDE, "garbage").unwrap();
+        assert_eq!(resolve_side(&mut conn), PanelSide::Right);
     }
 }

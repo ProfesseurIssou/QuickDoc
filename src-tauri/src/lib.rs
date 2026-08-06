@@ -34,25 +34,32 @@ use crate::window::PanelSide;
 // Window: dock + toggle
 // ---------------------------------------------------------------------------
 
-/// Dock the panel to the given side. The frontend always supplies the side it
-/// read from settings; on startup we fall back to the default.
+/// Dock the panel to the given side. When the frontend supplies an explicit
+/// side (e.g. from Settings), that wins. When `side` is `None` (toggle-open,
+/// startup), the persisted `panel_side` setting is read from the DB, falling
+/// back to the default only if it is unset.
 #[tauri::command]
-fn dock_window(app: AppHandle, side: Option<String>) -> tauri::Result<()> {
-    let side = side
-        .as_deref()
-        .map(PanelSide::parse)
-        .unwrap_or_default();
-    window::dock_primary(&app, side)
+fn dock_window(app: AppHandle, db: State<'_, db::Db>, side: Option<String>) -> tauri::Result<()> {
+    match side {
+        Some(raw) => window::dock_primary(&app, PanelSide::parse(&raw)),
+        None => {
+            let mut conn = db
+                .0
+                .lock()
+                .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("db lock poisoned: {e}")))?;
+            window::dock_primary_from_db(&app, &mut conn)
+        }
+    }
 }
 
 /// Toggle panel visibility; show -> focus the input field (zero clicks).
 #[tauri::command]
-fn toggle_panel(app: AppHandle, window: WebviewWindow) -> tauri::Result<()> {
+fn toggle_panel(app: AppHandle, db: State<'_, db::Db>, window: WebviewWindow) -> tauri::Result<()> {
     if window.is_visible().unwrap_or(false) {
         let _ = window.hide();
     } else {
-        // Re-dock in case the monitor geometry changed.
-        let _ = dock_window(app, None);
+        // Re-dock to the persisted side in case the monitor geometry changed.
+        let _ = dock_window(app, db, None);
         window.show()?;
         window.set_focus()?;
         // Tell the frontend to focus the input field once it's painted.
@@ -297,6 +304,18 @@ pub fn run() {
             let db = db::Db::init(&db_path).map_err(|e| {
                 tauri::Error::Anyhow(anyhow::anyhow!("database init: {e}"))
             })?;
+
+            // Dock the panel on startup to the persisted side (the frontend
+            // may re-dock later if settings changed since last launch). Done
+            // before `app.manage(db)` moves the connection into state.
+            {
+                let mut conn = db
+                    .0
+                    .lock()
+                    .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("db lock poisoned: {e}")))?;
+                let _ = window::dock_primary_from_db(app.handle(), &mut conn);
+            }
+
             app.manage(db);
 
             // Tray menu: Open, Settings, Quit.
@@ -347,10 +366,6 @@ pub fn run() {
                         });
                 }
             }
-
-            // Dock the panel on startup with the default side. The frontend
-            // re-docks with the persisted side once it has read settings.
-            let _ = window::dock_primary(app.handle(), PanelSide::default());
 
             Ok(())
         })

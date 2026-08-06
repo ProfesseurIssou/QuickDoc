@@ -1,7 +1,8 @@
-// History list for the current project: newest first, Markdown rendered, image
-// thumbnails via AttachmentView. Notes can be deleted.
+// History list for the current project: oldest first, Markdown rendered, image
+// thumbnails via AttachmentView. Notes can be deleted. The list auto-scrolls to
+// the bottom so the newest note is always visible.
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import MDEditor from "@uiw/react-md-editor";
 import { useTranslation } from "react-i18next";
 import AttachmentView from "./AttachmentView";
@@ -14,11 +15,20 @@ interface Props {
 
 function HistoryBase({ notes, onDelete }: Props) {
   const { t } = useTranslation();
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // Keep the newest note (at the bottom) in view as the list changes: on load,
+  // when switching projects, and when a note is added.
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [notes]);
+
   if (notes.length === 0) {
     return <div className="history-empty">{t("editor.emptyHistory")}</div>;
   }
   return (
-    <ul className="history">
+    <ul className="history" ref={listRef}>
       {notes.map((note) => (
         <li key={note.id} className="history-item">
           <div className="history-meta">

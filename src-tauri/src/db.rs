@@ -167,11 +167,13 @@ pub fn delete_project(conn: &mut SqliteConnection, id: i32) -> QueryResult<usize
     diesel::delete(projects::table.filter(projects::id.eq(id))).execute(conn)
 }
 
-/// Load a project's notes (newest first) with their attachments eagerly filled in.
+/// Load a project's notes oldest first (chronological), with the note id as a
+/// stable secondary sort key so same-second inserts keep their creation order.
+/// Attachments for the returned notes are eagerly filled in.
 pub fn list_notes(conn: &mut SqliteConnection, project_id: i32) -> QueryResult<Vec<Note>> {
     let rows = notes::table
         .filter(notes::project_id.eq(project_id))
-        .order(notes::created_at.desc())
+        .order((notes::created_at.asc(), notes::id.asc()))
         .select(NoteRow::as_select())
         .load::<NoteRow>(conn)?;
 
@@ -289,12 +291,13 @@ pub fn set_setting(conn: &mut SqliteConnection, key: &str, value: &str) -> Query
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use tempfile::NamedTempFile;
 
     /// A fresh in-memory-ish DB backed by a temp file, with migrations applied.
-    fn test_db() -> (NamedTempFile, SqliteConnection) {
+    /// `pub(crate)` so sibling modules' tests can build a temp DB.
+    pub(crate) fn test_db() -> (NamedTempFile, SqliteConnection) {
         let file = NamedTempFile::new().unwrap();
         let mut conn =
             SqliteConnection::establish(&file.path().to_string_lossy()).unwrap();
@@ -345,5 +348,48 @@ mod tests {
         let p = create_project(&mut conn, "Work").unwrap();
         // Inbox has sort_order 0; the next project should be 1.
         assert_eq!(p.sort_order, 1);
+    }
+
+    #[test]
+    fn notes_returned_oldest_first() {
+        let (_f, mut conn) = test_db();
+        let project = list_projects(&mut conn).unwrap().pop().unwrap();
+        // Insert A, B, C in order with a small delay so their created_at
+        // timestamps differ.
+        let a = create_note(&mut conn, project.id, "A").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let b = create_note(&mut conn, project.id, "B").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let c = create_note(&mut conn, project.id, "C").unwrap();
+
+        let loaded = list_notes(&mut conn, project.id).unwrap();
+        assert_eq!(loaded.len(), 3);
+        // Oldest first => [A, B, C].
+        assert_eq!(loaded[0].content_md, "A");
+        assert_eq!(loaded[1].content_md, "B");
+        assert_eq!(loaded[2].content_md, "C");
+        // Sanity: ids are ascending too.
+        assert!(a.id < b.id);
+        assert!(b.id < c.id);
+    }
+
+    #[test]
+    fn notes_same_second_keep_creation_order() {
+        let (_f, mut conn) = test_db();
+        let project = list_projects(&mut conn).unwrap().pop().unwrap();
+        // Three notes created within the same second: created_at is identical,
+        // so the id tiebreaker must keep insertion order.
+        let a = create_note(&mut conn, project.id, "A").unwrap();
+        let b = create_note(&mut conn, project.id, "B").unwrap();
+        let c = create_note(&mut conn, project.id, "C").unwrap();
+
+        let loaded = list_notes(&mut conn, project.id).unwrap();
+        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded[0].content_md, "A");
+        assert_eq!(loaded[1].content_md, "B");
+        assert_eq!(loaded[2].content_md, "C");
+        // All share the same second-resolution timestamp.
+        assert_eq!(a.created_at, b.created_at);
+        assert_eq!(b.created_at, c.created_at);
     }
 }

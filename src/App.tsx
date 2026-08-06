@@ -133,7 +133,7 @@ export default function App() {
 
   // ---- editor / project handlers ------------------------------------------
   const onNoteSaved = useCallback((note: Note) => {
-    setNotes((prev) => [note, ...prev]);
+    setNotes((prev) => [...prev, note]);
   }, []);
 
   const onDeleteNote = useCallback(async (id: number) => {

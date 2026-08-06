@@ -1,16 +1,18 @@
 //! QuickDoc backend entry point.
 //!
-//! Wires up plugins (SQL with migrations, global shortcut, dialog, fs, clipboard),
-//! the system tray, the global hotkey, and a handful of Tauri commands for the
-//! things that are easier in Rust than through the SQL plugin directly.
+//! Wires up plugins (Diesel/SQLite for persistence, global shortcut, dialog, fs,
+//! clipboard, autostart), the system tray, the global hotkey, and Tauri commands
+//! covering all data access (projects, notes, attachments, settings).
 //!
-//! Settings live in SQLite and are owned by the frontend (via tauri-plugin-sql).
-//! The Rust side never queries the DB directly; instead the frontend passes
-//! values it has already read (e.g. the panel side when docking).
+//! Settings live in SQLite and are owned by the Rust side via Diesel; the
+//! frontend reads/writes them through `db_get_setting` / `db_set_setting` and
+//! passes values it needs (e.g. the panel side when docking).
 
 mod attachments;
+mod db;
 mod export;
 mod keybinding;
+mod schema;
 mod settings;
 mod window;
 
@@ -18,12 +20,13 @@ use std::collections::BTreeMap;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, WebviewWindow,
+    AppHandle, Emitter, Manager, State, WebviewWindow,
 };
 use tauri_plugin_global_shortcut::{
     Builder as ShortcutBuilder, GlobalShortcutExt, Shortcut, ShortcutState,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use diesel::prelude::SqliteConnection;
 
 use crate::window::PanelSide;
 
@@ -154,6 +157,100 @@ fn resolve_keybindings(
 }
 
 // ---------------------------------------------------------------------------
+// Persistence commands (Diesel/SQLite). Thin wrappers over the `db` module.
+// ---------------------------------------------------------------------------
+
+/// Locking helper: run a closure with the connection borrowed from state.
+fn with_db<F, T>(db: &State<'_, db::Db>, f: F) -> Result<T, String>
+where
+    F: FnOnce(&mut SqliteConnection) -> Result<T, diesel::result::Error>,
+{
+    let mut conn = db
+        .0
+        .lock()
+        .map_err(|e| format!("db lock poisoned: {e}"))?;
+    f(&mut conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn db_list_projects(db: State<'_, db::Db>) -> Result<Vec<db::Project>, String> {
+    with_db(&db, db::list_projects)
+}
+
+#[tauri::command]
+fn db_create_project(db: State<'_, db::Db>, name: String) -> Result<db::Project, String> {
+    with_db(&db, |c| db::create_project(c, name.trim()))
+}
+
+#[tauri::command]
+fn db_rename_project(db: State<'_, db::Db>, id: i32, name: String) -> Result<(), String> {
+    with_db(&db, |c| db::rename_project(c, id, name.trim()))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_delete_project(db: State<'_, db::Db>, id: i32) -> Result<(), String> {
+    with_db(&db, |c| db::delete_project(c, id))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_list_notes(db: State<'_, db::Db>, project_id: i32) -> Result<Vec<db::Note>, String> {
+    with_db(&db, |c| db::list_notes(c, project_id))
+}
+
+#[tauri::command]
+fn db_create_note(db: State<'_, db::Db>, project_id: i32, content_md: String) -> Result<db::Note, String> {
+    with_db(&db, |c| db::create_note(c, project_id, &content_md))
+}
+
+#[tauri::command]
+fn db_update_note(db: State<'_, db::Db>, id: i32, content_md: String) -> Result<(), String> {
+    with_db(&db, |c| db::update_note(c, id, &content_md))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_delete_note(db: State<'_, db::Db>, id: i32) -> Result<(), String> {
+    with_db(&db, |c| db::delete_note(c, id))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_add_attachment(
+    db: State<'_, db::Db>,
+    note_id: i32,
+    kind: String,
+    mime: String,
+    file_name: String,
+) -> Result<db::Attachment, String> {
+    with_db(&db, |c| db::add_attachment(c, note_id, &kind, &mime, &file_name))
+}
+
+/// All settings as a flat `{ key: value }` object (values are always strings).
+#[tauri::command]
+fn db_get_all_settings(db: State<'_, db::Db>) -> Result<SettingsFlat, String> {
+    let rows = with_db(&db, db::get_all_settings)?;
+    Ok(SettingsFlat(rows.into_iter().collect()))
+}
+
+#[tauri::command]
+fn db_get_setting(db: State<'_, db::Db>, key: String) -> Result<Option<String>, String> {
+    with_db(&db, |c| db::get_setting(c, &key))
+}
+
+#[tauri::command]
+fn db_set_setting(db: State<'_, db::Db>, key: String, value: String) -> Result<(), String> {
+    with_db(&db, |c| db::set_setting(c, &key, &value))?;
+    Ok(())
+}
+
+/// Frontend-facing settings payload: a flat string→string map.
+/// Serialized as `{ "panel_side": "right", ... }`.
+#[derive(Debug, serde::Serialize)]
+pub struct SettingsFlat(pub std::collections::BTreeMap<String, String>);
+
+// ---------------------------------------------------------------------------
 // Global hotkey handling
 // ---------------------------------------------------------------------------
 
@@ -183,19 +280,6 @@ pub fn run() {
         .build();
 
     tauri::Builder::default()
-        .plugin(
-            tauri_plugin_sql::Builder::default()
-                .add_migrations(
-                    "sqlite:quickdoc.sqlite",
-                    vec![tauri_plugin_sql::Migration {
-                        version: 1,
-                        description: "create initial schema",
-                        sql: include_str!("../migrations/001_init.sql"),
-                        kind: tauri_plugin_sql::MigrationKind::Up,
-                    }],
-                )
-                .build(),
-        )
         .plugin(toggle_plugin)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -204,8 +288,17 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             None,
         ))
-        .manage(())
         .setup(|app| {
+            // Open the SQLite database in the app data dir, run migrations,
+            // and store the connection in Tauri state for the db_* commands.
+            let db_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&db_dir)?;
+            let db_path = db_dir.join("quickdoc.sqlite");
+            let db = db::Db::init(&db_path).map_err(|e| {
+                tauri::Error::Anyhow(anyhow::anyhow!("database init: {e}"))
+            })?;
+            app.manage(db);
+
             // Tray menu: Open, Settings, Quit.
             let open = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
             let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -273,6 +366,18 @@ pub fn run() {
             render_export_markdown,
             render_export_html,
             resolve_keybindings,
+            db_list_projects,
+            db_create_project,
+            db_rename_project,
+            db_delete_project,
+            db_list_notes,
+            db_create_note,
+            db_update_note,
+            db_delete_note,
+            db_add_attachment,
+            db_get_all_settings,
+            db_get_setting,
+            db_set_setting,
         ])
         .run(tauri::generate_context!())
         .expect("error while running QuickDoc");

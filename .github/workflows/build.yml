@@ -46,9 +46,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Read app version
+        id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       # Builds the frontend (vite) + the Rust binary + the Windows installer.
-      # On a tag push it also creates a draft GitHub Release and attaches the
-      # installer. On other events it just builds (artifacts uploaded below).
+      # On a tag push it also creates a published GitHub Release with the raw
+      # installer attached (no zip). On other events it just builds.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,16 +61,17 @@ jobs:
           # Empty on non-tag runs → no release is created.
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: "QuickDoc ${{ github.ref_name }}"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
 
-      # Always expose the built installer as a downloadable artifact, even on
-      # plain pushes/PRs, so you can grab the latest .msi/.exe anytime.
-      - name: Upload installer
+      # Always expose the built installers as downloadable artifacts, even on
+      # plain pushes/PRs. upload-artifact always wraps files in a zip on
+      # download; the unzipped installers live on the tag releases instead.
+      - name: Upload installers
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: QuickDoc-windows
+          name: QuickDoc_${{ steps.version.outputs.version }}_windows_x64
           path: |
             src-tauri/target/release/bundle/msi/**/*.msi
             src-tauri/target/release/bundle/nsis/**/*.exe

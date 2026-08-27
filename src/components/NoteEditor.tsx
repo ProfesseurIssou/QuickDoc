@@ -1,4 +1,4 @@
-// Note editor: a Markdown textarea (with optional preview), Ctrl+Enter to save,
+// Note editor: a Markdown textarea (with optional preview), Enter to save,
 // and image paste/import. After saving, the field clears and keeps focus so the
 // "note & go" flow is frictionless.
 
@@ -41,8 +41,9 @@ export default function NoteEditor({ projectId, onSaved }: Props) {
   }, [value, pending, projectId, onSaved]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    // Ctrl+Enter saves. Esc hides the panel (handled in App).
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    // Enter saves, Shift+Enter inserts a newline. Esc hides the panel
+    // (handled in App).
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       void save();
     }

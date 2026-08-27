@@ -265,10 +265,10 @@ export default function App() {
             onRename={onRenameProject}
             onDelete={onDeleteProject}
           />
+          <History notes={notes} onDelete={(id) => void onDeleteNote(id)} />
           {activeId !== null && (
             <NoteEditor projectId={activeId} onSaved={onNoteSaved} />
           )}
-          <History notes={notes} onDelete={(id) => void onDeleteNote(id)} />
         </main>
       )}
 

@@ -4,7 +4,7 @@
     "tagline": "Notes instantanées, sans friction"
   },
   "editor": {
-    "placeholder": "Saisissez une note… (Ctrl+Entrée pour enregistrer, Échap pour masquer)",
+    "placeholder": "Saisissez une note… (Entrée pour envoyer, Maj+Entrée pour un saut de ligne)",
     "save": "Enregistrer",
     "preview": "Aperçu",
     "write": "Écrire",

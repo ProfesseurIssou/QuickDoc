@@ -4,7 +4,7 @@
     "tagline": "Instant notes, zero friction"
   },
   "editor": {
-    "placeholder": "Type a note… (Ctrl+Enter to save, Esc to hide)",
+    "placeholder": "Type a note… (Enter to send, Shift+Enter for a new line)",
     "save": "Save",
     "preview": "Preview",
     "write": "Write",

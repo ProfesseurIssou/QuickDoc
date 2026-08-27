@@ -174,9 +174,9 @@ textarea {
   padding: 4px 6px;
 }
 
-/* ---- editor ---- */
+/* ---- editor (pinned at the bottom, messaging-style) ---- */
 .editor {
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   padding: 8px;
 }
 .editor-toolbar {
@@ -204,12 +204,14 @@ textarea {
   margin: 0;
   padding: 6px;
   flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 .history-empty {
   color: var(--fg-dim);
   padding: 24px;
   text-align: center;
+  flex: 1;
 }
 .history-item {
   padding: 8px;

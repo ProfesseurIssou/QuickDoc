@@ -1,8 +1,9 @@
 //! QuickDoc backend entry point.
 //!
-//! Wires up plugins (Diesel/SQLite for persistence, global shortcut, dialog, fs,
-//! clipboard, autostart), the system tray, the global hotkey, and Tauri commands
-//! covering all data access (projects, notes, attachments, settings).
+//! Wires up plugins (Diesel/SQLite for persistence, single instance, global
+//! shortcut, dialog, fs, clipboard, autostart), the system tray, the global
+//! hotkey, and Tauri commands covering all data access (projects, notes,
+//! attachments, settings).
 //!
 //! Settings live in SQLite and are owned by the Rust side via Diesel; the
 //! frontend reads/writes them through `db_get_setting` / `db_set_setting` and
@@ -25,6 +26,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{
     Builder as ShortcutBuilder, GlobalShortcutExt, Shortcut, ShortcutState,
 };
+use tauri_plugin_single_instance::init as single_instance_init;
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use diesel::prelude::SqliteConnection;
 
@@ -309,6 +311,15 @@ pub fn run() {
         .build();
 
     tauri::Builder::default()
+        // Must be the first plugin: a second launch (accidental double-open,
+        // re-pinned shortcut) surfaces the existing panel instead of starting
+        // a second process fighting over the same SQLite database.
+        .plugin(single_instance_init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(toggle_plugin)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

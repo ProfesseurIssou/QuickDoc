@@ -98,11 +98,9 @@ fn autostart_enabled(app: AppHandle) -> bool {
 // Attachments: save clipboard image bytes to the attachments folder.
 // ---------------------------------------------------------------------------
 
-/// Persist raw image bytes from the clipboard and return the stable file name +
-/// mime + kind, ready for the frontend to insert into the `attachments` table.
-#[tauri::command]
-fn save_attachment_bytes(
-    app: AppHandle,
+/// Persist raw attachment bytes under a stable name in the attachments folder.
+fn persist_attachment(
+    app: &AppHandle,
     bytes: Vec<u8>,
     mime: String,
 ) -> Result<attachments::ExportSaveResult, String> {
@@ -111,7 +109,7 @@ fn save_attachment_bytes(
     if !attachments::is_safe_name(&file_name) {
         return Err("unsafe attachment name".into());
     }
-    let dir = attachments::attachments_dir(&app).map_err(|e| e.to_string())?;
+    let dir = attachments::attachments_dir(app).map_err(|e| e.to_string())?;
     let path = dir.join(&file_name);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(attachments::ExportSaveResult {
@@ -119,6 +117,30 @@ fn save_attachment_bytes(
         mime,
         file_name,
     })
+}
+
+/// Persist raw image bytes from the clipboard and return the stable file name +
+/// mime + kind, ready for the frontend to insert into the `attachments` table.
+#[tauri::command]
+fn save_attachment_bytes(
+    app: AppHandle,
+    bytes: Vec<u8>,
+    mime: String,
+) -> Result<attachments::ExportSaveResult, String> {
+    persist_attachment(&app, bytes, mime)
+}
+
+/// Persist a file dropped onto the panel, given by its absolute path. Custom
+/// commands are not restricted by the fs plugin scope, so this works for files
+/// anywhere on disk (picked paths land in the scope, dropped paths do not).
+#[tauri::command]
+fn import_attachment_path(
+    app: AppHandle,
+    path: String,
+    mime: String,
+) -> Result<attachments::ExportSaveResult, String> {
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    persist_attachment(&app, bytes, mime)
 }
 
 /// Return the absolute path to the attachments dir (used by export to copy assets).
@@ -377,6 +399,7 @@ pub fn run() {
             disable_autostart,
             autostart_enabled,
             save_attachment_bytes,
+            import_attachment_path,
             attachments_dir_path,
             render_export_markdown,
             render_export_html,

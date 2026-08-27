@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mimeFromPath, normalizeKind } from "../lib/attachments";
+import { isImagePath, mimeFromPath, normalizeKind } from "../lib/attachments";
 
 describe("mimeFromPath", () => {
   it("maps common image extensions", () => {
@@ -16,6 +16,20 @@ describe("mimeFromPath", () => {
   it("falls back to octet-stream", () => {
     expect(mimeFromPath("file.xyz")).toBe("application/octet-stream");
     expect(mimeFromPath("noext")).toBe("application/octet-stream");
+  });
+});
+
+describe("isImagePath", () => {
+  it("accepts known image extensions", () => {
+    expect(isImagePath("C:\\img\\shot.png")).toBe(true);
+    expect(isImagePath("photo.jpeg")).toBe(true);
+    expect(isImagePath("/tmp/anim.gif")).toBe(true);
+    expect(isImagePath("vector.SVG")).toBe(true);
+  });
+  it("rejects other files", () => {
+    expect(isImagePath("doc.pdf")).toBe(false);
+    expect(isImagePath("clip.mp4")).toBe(false);
+    expect(isImagePath("noext")).toBe(false);
   });
 });
 

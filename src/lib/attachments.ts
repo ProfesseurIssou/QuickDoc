@@ -2,7 +2,7 @@
 // resolving an attachment's file name to something the <img>/export can use.
 
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { readImage, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { addAttachment } from "./db";
@@ -38,23 +38,70 @@ export async function attachmentSrc(
 /**
  * Read the clipboard. If it holds an image, persist it and return the saved
  * attachment descriptor. Returns null when the clipboard has no image.
+ *
+ * The plugin only exposes raw RGBA pixels, which are not a valid image file on
+ * their own — encode them into a real PNG via a canvas before persisting.
  */
 export async function pasteImageFromClipboard(): Promise<SavedAttachment | null> {
-  // Try the clipboard image first; fall back to null when only text is present.
   try {
     const image = await readImage();
-    // rgba() returns raw pixel bytes (Promise<Uint8Array>). We store them with
-    // PNG metadata so the DB record + renderer treat it as an image.
-    const rgba = await image.rgba();
-    return await saveBytes(rgba, "image/png");
+    const [rgba, size] = await Promise.all([image.rgba(), image.size()]);
+    const { width, height } = size;
+    if (!rgba.length || !width || !height) return null;
+    const png = await rgbaToPngBlob(rgba, width, height);
+    return await saveBytes(new Uint8Array(await png.arrayBuffer()), "image/png");
   } catch {
-    try {
-      await readText();
-      return null;
-    } catch {
-      return null;
-    }
+    return null;
   }
+}
+
+/** Encode raw RGBA pixels into a PNG blob using a 2D canvas. */
+async function rgbaToPngBlob(
+  rgba: Uint8Array,
+  width: number,
+  height: number,
+): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas 2d context unavailable");
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/png"),
+  );
+  if (!blob) throw new Error("PNG encoding failed");
+  return blob;
+}
+
+/** Persist a file picked/dropped by absolute path via the Rust backend. */
+export async function importFileFromPath(
+  path: string,
+): Promise<SavedAttachment> {
+  return invoke<SavedAttachment>("import_attachment_path", {
+    path,
+    mime: mimeFromPath(path),
+  });
+}
+
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
+
+/** True when a path looks like an image we can store. */
+export function isImagePath(path: string): boolean {
+  return IMAGE_EXTENSIONS.includes(
+    path.split(".").pop()?.toLowerCase() ?? "",
+  );
+}
+
+/** Persist every dropped image file, skipping non-image paths. */
+export async function importDroppedFiles(
+  paths: string[],
+): Promise<SavedAttachment[]> {
+  const out: SavedAttachment[] = [];
+  for (const path of paths.filter(isImagePath)) {
+    out.push(await importFileFromPath(path));
+  }
+  return out;
 }
 
 /** Open a file picker for images, read + persist each, return descriptors. */

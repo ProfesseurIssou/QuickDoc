@@ -36,3 +36,4 @@ src-tauri/gen/
 
 # Local app data folder (created at runtime; never commit user data)
 data/
+.zcode/

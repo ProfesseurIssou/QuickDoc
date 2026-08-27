@@ -179,6 +179,10 @@ textarea {
   border-top: 1px solid var(--border);
   padding: 8px;
 }
+.editor.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
 .editor-toolbar {
   display: flex;
   align-items: center;

@@ -95,7 +95,8 @@ jobs:
             fi
 
             CUR=$(node -p "require('./package.json').version")
-            NEXT=$(node -e "let [x,y,z]=process.argv[1].split('.').map(Number); if($MAJOR)x++; else if($MINOR)y++; else z++; console.log([x,y,z].join('.'))" "$CUR")
+            # Semver bump: major/minor resets the lower segments (0.3.1 + feat -> 0.4.0, not 0.4.1).
+            NEXT=$(node -e "let [x,y,z]=process.argv[1].split('.').map(Number); if($MAJOR){x++;y=0;z=0} else if($MINOR){y++;z=0} else z++; console.log([x,y,z].join('.'))" "$CUR")
 
             if [ "$NEXT" = "$CUR" ] && git rev-parse -q --verify "refs/tags/v$NEXT" >/dev/null; then
               echo "No releasable commits since $LAST_TAG; skipping release."

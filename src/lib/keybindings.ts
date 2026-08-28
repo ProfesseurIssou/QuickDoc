@@ -63,10 +63,33 @@ function isGlobalAction(action: string): action is GlobalAction {
 
 /** Load saved keybindings (merged with defaults) and register them. */
 export async function initKeybindings(): Promise<KeybindingMap> {
-  const map = await getKeybindings();
+  const stored = await getKeybindings();
+  // Migrate installs that still carry the legacy Ctrl+Alt+N project shortcuts
+  // (they swallow AltGr characters system-wide on European keyboards).
+  const map = migrateLegacyBindings(stored);
+  if (map !== stored) await setKeybindings(map);
   await applyKeybindings(map);
   initialized = true;
   return map;
+}
+
+/**
+ * One-time migration: `select_project_N` used to default to Ctrl+Alt+N, which
+ * Windows AltGr (reported as Ctrl+Alt) triggers from any app. Any project
+ * shortcut still on its legacy default moves to the new Ctrl+Shift+N default;
+ * user-customized bindings are left untouched.
+ */
+export function migrateLegacyBindings(map: KeybindingMap): KeybindingMap {
+  let changed = false;
+  const next = { ...map };
+  for (let n = 1; n <= 9; n++) {
+    const action = `select_project_${n}`;
+    if (next[action] === `Ctrl+Alt+${n}`) {
+      next[action] = `Ctrl+Shift+${n}`;
+      changed = true;
+    }
+  }
+  return changed ? next : map;
 }
 
 /** Update one keybinding in settings and re-register everything. */

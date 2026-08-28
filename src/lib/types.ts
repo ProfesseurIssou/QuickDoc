@@ -37,19 +37,22 @@ export type SettingsMap = Record<string, string>;
 export type KeybindingMap = Record<string, string>;
 
 /** Default keybindings, mirrored from the Rust defaults(). */
+// Project shortcuts use Ctrl+Shift (not Ctrl+Alt): Windows reports AltGr as
+// Ctrl+Alt, so Ctrl+Alt+<digit> globals would swallow AltGr characters
+// ({, #, [ …) typed in any application on European keyboards.
 export const DEFAULT_KEYBINDINGS: KeybindingMap = {
   toggle_panel: "Ctrl+Alt+Space",
   cycle_projects: "Ctrl+Alt+P",
   save_note: "Ctrl+Enter",
-  select_project_1: "Ctrl+Alt+1",
-  select_project_2: "Ctrl+Alt+2",
-  select_project_3: "Ctrl+Alt+3",
-  select_project_4: "Ctrl+Alt+4",
-  select_project_5: "Ctrl+Alt+5",
-  select_project_6: "Ctrl+Alt+6",
-  select_project_7: "Ctrl+Alt+7",
-  select_project_8: "Ctrl+Alt+8",
-  select_project_9: "Ctrl+Alt+9",
+  select_project_1: "Ctrl+Shift+1",
+  select_project_2: "Ctrl+Shift+2",
+  select_project_3: "Ctrl+Shift+3",
+  select_project_4: "Ctrl+Shift+4",
+  select_project_5: "Ctrl+Shift+5",
+  select_project_6: "Ctrl+Shift+6",
+  select_project_7: "Ctrl+Shift+7",
+  select_project_8: "Ctrl+Shift+8",
+  select_project_9: "Ctrl+Shift+9",
 };
 
 export const DEFAULT_PANEL_SIDE: PanelSide = "right";

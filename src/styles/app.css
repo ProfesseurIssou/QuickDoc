@@ -272,6 +272,11 @@ textarea {
   margin: 0;
   font-size: 16px;
 }
+.settings-version {
+  margin-left: auto;
+  color: var(--fg-dim);
+  font-size: 12px;
+}
 .settings-row {
   display: flex;
   align-items: center;

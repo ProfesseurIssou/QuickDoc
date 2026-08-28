@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useTranslation } from "react-i18next";
 import KeyCapture from "../components/KeyCapture";
 import { DEFAULT_KEYBINDINGS, KeybindingMap, PanelSide } from "../lib/types";
@@ -30,9 +31,15 @@ export default function Settings({
   const [bindings, setBindings] = useState<KeybindingMap>({ ...DEFAULT_KEYBINDINGS });
   const [autostart, setAutostart] = useState(false);
   const [autoUpdate, setAutoUpdate] = useState(true);
+  const [version, setVersion] = useState("");
 
   useEffect(() => {
     void (async () => {
+      try {
+        setVersion(await getVersion());
+      } catch {
+        // Non-tauri environment (tests) — just leave it blank.
+      }
       const settings = await getAllSettings();
       const side = (settings.panel_side as PanelSide) ?? "right";
       setPanelSide(side);
@@ -97,6 +104,7 @@ export default function Settings({
           ← {t("settings.back")}
         </button>
         <h2>{t("settings.title")}</h2>
+        {version && <span className="settings-version">v{version}</span>}
       </div>
 
       <section className="settings-row">

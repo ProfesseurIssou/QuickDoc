@@ -1,4 +1,5 @@
-// Settings page: panel side, language, and a keybinding editor.
+// Settings page: panel side, language, autostart, updates, and a keybinding
+// editor.
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -28,6 +29,7 @@ export default function Settings({
   const [locale, setLocale] = useState(i18n.language ?? "en");
   const [bindings, setBindings] = useState<KeybindingMap>({ ...DEFAULT_KEYBINDINGS });
   const [autostart, setAutostart] = useState(false);
+  const [autoUpdate, setAutoUpdate] = useState(true);
 
   useEffect(() => {
     void (async () => {
@@ -36,6 +38,7 @@ export default function Settings({
       setPanelSide(side);
       const loc = settings.locale ?? "en";
       setLocale(loc);
+      setAutoUpdate(settings.auto_update !== "false");
       try {
         setBindings({ ...DEFAULT_KEYBINDINGS, ...JSON.parse(settings.keybindings ?? "{}") });
       } catch {
@@ -70,6 +73,11 @@ export default function Settings({
       // Roll back the optimistic update on failure.
       setAutostart(!enabled);
     }
+  };
+
+  const toggleAutoUpdate = async (enabled: boolean) => {
+    setAutoUpdate(enabled);
+    await setSetting("auto_update", enabled ? "true" : "false");
   };
 
   const changeBinding = async (action: string, binding: string) => {
@@ -116,6 +124,15 @@ export default function Settings({
           type="checkbox"
           checked={autostart}
           onChange={(e) => void toggleAutostart(e.target.checked)}
+        />
+      </section>
+
+      <section className="settings-row">
+        <label>{t("settings.autoUpdate")}</label>
+        <input
+          type="checkbox"
+          checked={autoUpdate}
+          onChange={(e) => void toggleAutoUpdate(e.target.checked)}
         />
       </section>
 

@@ -44,6 +44,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -56,5 +57,12 @@
     "shortDescription": "Instant note-taking utility",
     "longDescription": "QuickDoc is a zero-friction, instant note-taking utility that lives in your system tray."
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1MjcyOTVBNEQ3MDdBMjgKUldRb2VuQk5XaWtuTlJNcEs0R00vZjRBWnJwZzRxWWNDbXNXQ1NMNS8vdGVtSFAvL0E0ZXhDazAK",
+      "endpoints": [
+        "https://github.com/ProfesseurIssou/QuickDoc/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }

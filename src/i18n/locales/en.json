@@ -30,6 +30,7 @@
     "right": "Right",
     "language": "Language",
     "launchAtStartup": "Launch at startup",
+    "autoUpdate": "Automatic updates",
     "keybindings": "Keybindings",
     "pressKeys": "Press keys…",
     "reset": "Reset to defaults",
@@ -55,6 +56,9 @@
     "html": "Export HTML",
     "saved": "Saved to {{path}}",
     "failed": "Export failed"
+  },
+  "updater": {
+    "ready": "Update ready — it will be installed on quit"
   },
   "tray": {
     "open": "Open",

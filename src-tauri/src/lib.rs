@@ -1,9 +1,9 @@
 //! QuickDoc backend entry point.
 //!
-//! Wires up plugins (Diesel/SQLite for persistence, single instance, global
-//! shortcut, dialog, fs, clipboard, autostart), the system tray, the global
-//! hotkey, and Tauri commands covering all data access (projects, notes,
-//! attachments, settings).
+//! Wires up plugins (Diesel/SQLite for persistence, single instance, updater,
+//! global shortcut, dialog, fs, clipboard, autostart), the system tray, the
+//! global hotkey, and Tauri commands covering all data access (projects,
+//! notes, attachments, settings).
 //!
 //! Settings live in SQLite and are owned by the Rust side via Diesel; the
 //! frontend reads/writes them through `db_get_setting` / `db_set_setting` and
@@ -74,6 +74,14 @@ fn toggle_panel(app: AppHandle, db: State<'_, db::Db>, window: WebviewWindow) ->
 #[tauri::command]
 fn hide_panel(window: WebviewWindow) -> tauri::Result<()> {
     window.hide()
+}
+
+/// Quit for real. Called by the frontend from its quit path, after it has had
+/// the chance to install a downloaded update (the updater's install() exits
+/// the process by itself, so it never falls back to this).
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Enable launching QuickDoc at OS startup.
@@ -321,6 +329,7 @@ pub fn run() {
             }
         }))
         .plugin(toggle_plugin)
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -328,6 +337,18 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             None,
         ))
+        // The panel is tray-resident: closing the window (Alt+F4) hides it
+        // instead of destroying it — the webview must stay alive for the
+        // quit-time update install, and a destroyed window can't be toggled
+        // back anyway.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
             // Open the SQLite database in the app data dir, run migrations,
             // and store the connection in Tauri state for the db_* commands.
@@ -381,7 +402,13 @@ pub fn run() {
                         }
                     }
                     "quit" => {
-                        app.exit(0);
+                        // Ask the frontend to run its quit path first: it
+                        // installs a downloaded update (if any) before exit.
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.emit("quickdoc://quit", ());
+                        } else {
+                            app.exit(0);
+                        }
                     }
                     _ => {}
                 })
@@ -406,6 +433,7 @@ pub fn run() {
             dock_window,
             toggle_panel,
             hide_panel,
+            quit_app,
             enable_autostart,
             disable_autostart,
             autostart_enabled,

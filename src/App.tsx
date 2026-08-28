@@ -24,6 +24,7 @@ import {
 import { initKeybindings, onAction } from "./lib/keybindings";
 import { DEFAULT_LOCALE, Note, Project } from "./lib/types";
 import { exportProjectHtml, exportProjectMarkdown } from "./lib/export";
+import { initAutoUpdate, installPendingUpdate } from "./lib/updater";
 import "./i18n";
 
 type View = "main" | "settings";
@@ -80,6 +81,9 @@ export default function App() {
       const initial =
         list.find((p) => p.id === Number(savedActive)) ?? list[0];
       if (initial) await selectProject(initial.id);
+
+      // Background update check: download now, install on quit.
+      await initAutoUpdate(() => showToast(t("updater.ready")));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -98,11 +102,21 @@ export default function App() {
     const unlistenFocus = listen("quickdoc://focus-input", () => {
       focusEditor();
     });
+    // Tray Quit: install the downloaded update (this exits the process), or
+    // quit directly when there is nothing to install.
+    const unlistenQuit = listen("quickdoc://quit", () => {
+      void (async () => {
+        if (!(await installPendingUpdate())) {
+          await invoke("quit_app");
+        }
+      })();
+    });
     return () => {
       void unlistenAction.then((fn) => fn());
       void unlistenRust.then((fn) => fn());
       void unlistenNav.then((fn) => fn());
       void unlistenFocus.then((fn) => fn());
+      void unlistenQuit.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, activeId]);

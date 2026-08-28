@@ -133,9 +133,32 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      # Updater signing: expose the private key only when the secret exists
+      # (an empty TAURI_SIGNING_PRIVATE_KEY would hard-fail the bundler). When
+      # it is missing, build without updater artifacts instead — the release
+      # then ships without latest.json, and updates activate on the next
+      # release once the secret has been added.
+      - name: Prepare updater signing
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          if [ -n "$KEY" ]; then
+            {
+              echo "TAURI_SIGNING_PRIVATE_KEY<<KEY_EOF"
+              printf '%s\n' "$KEY"
+              echo "KEY_EOF"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret TAURI_SIGNING_PRIVATE_KEY is missing: building without updater artifacts (auto-update disabled until it is added)."
+            node -e 'const fs=require("fs");const f="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(f,"utf8"));c.bundle.createUpdaterArtifacts=false;fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n")'
+          fi
+
       # Builds the frontend (vite) + the Rust binary + the Windows installer.
       # When TAG is set it publishes/updates the GitHub Release and attaches
-      # the raw installers; otherwise it only builds.
+      # the raw installers; otherwise it only builds. With the signing key
+      # present, tauri-action also signs the bundles and attaches latest.json
+      # + .sig files so the in-app updater can serve from GitHub Releases.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -145,6 +168,7 @@ jobs:
           releaseBody: ${{ steps.release.outputs.body }}
           releaseDraft: false
           prerelease: false
+          updaterJsonPreferNsis: true
 
       # Installers as raw (unzipped) artifacts on every run — one artifact per
       # file, named after the file itself (archive:false ignores `name`).

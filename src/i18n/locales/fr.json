@@ -30,6 +30,7 @@
     "right": "Droite",
     "language": "Langue",
     "launchAtStartup": "Lancer au démarrage",
+    "autoUpdate": "Mises à jour automatiques",
     "keybindings": "Raccourcis clavier",
     "pressKeys": "Appuyez sur les touches…",
     "reset": "Réinitialiser",
@@ -55,6 +56,9 @@
     "html": "Exporter en HTML",
     "saved": "Enregistré dans {{path}}",
     "failed": "Échec de l'export"
+  },
+  "updater": {
+    "ready": "Mise à jour prête — elle sera installée à la fermeture"
   },
   "tray": {
     "open": "Ouvrir",

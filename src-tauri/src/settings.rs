@@ -17,6 +17,9 @@ pub mod keys {
     /// Value stored as JSON: { "action": "binding", ... }.
     pub const KEYBINDINGS: &str = "keybindings";
     pub const ACTIVE_PROJECT_ID: &str = "active_project_id";
+    /// Value stored as "true"/"false": download updates in the background and
+    /// install them when the app quits.
+    pub const AUTO_UPDATE: &str = "auto_update";
 }
 
 /// The default settings map as (key, value) pairs, applied on first run.
@@ -25,6 +28,7 @@ pub fn defaults() -> BTreeMap<&'static str, String> {
     map.insert(keys::PANEL_SIDE, "right".to_string());
     map.insert(keys::LOCALE, "en".to_string());
     map.insert(keys::ACTIVE_PROJECT_ID, "1".to_string());
+    map.insert(keys::AUTO_UPDATE, "true".to_string());
 
     let kb: BTreeMap<&str, &str> = keybinding::defaults().into_iter().collect();
     map.insert(

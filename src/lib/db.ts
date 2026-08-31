@@ -95,6 +95,13 @@ export async function updateNote(id: number, contentMd: string): Promise<void> {
   await invoke("db_update_note", { id, contentMd });
 }
 
+export async function setNoteColor(
+  id: number,
+  color: string | null,
+): Promise<void> {
+  await invoke("db_set_note_color", { id, color });
+}
+
 export async function deleteNote(id: number): Promise<void> {
   await invoke("db_delete_note", { id });
 }
@@ -112,4 +119,3 @@ export async function addAttachment(
     fileName,
   });
 }
-

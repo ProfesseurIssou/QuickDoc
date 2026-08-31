@@ -40,8 +40,11 @@ export default function NoteEditor({ projectId, onSaved }: Props) {
     onSaved(note);
     setValue("");
     setPending([]);
-    // Re-focus the editor for the next quick note.
-    requestAnimationFrame(() => containerRef.current?.focus());
+    // Re-focus the textarea for the next quick note (focusing the container
+    // itself loses keyboard input until the user clicks back in).
+    requestAnimationFrame(() =>
+      containerRef.current?.querySelector("textarea")?.focus(),
+    );
   }, [value, pending, projectId, onSaved]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {

@@ -35,23 +35,48 @@ const note = (over: Partial<Note> = {}): Note => ({
   content_md: "hello",
   created_at: "2024-01-01 12:00",
   updated_at: "2024-01-01 12:00",
+  color: null,
   attachments: [],
+  ...over,
+});
+
+const props = (over: Record<string, unknown> = {}) => ({
+  onDelete: vi.fn(),
+  onEdit: vi.fn(),
+  onColor: vi.fn(),
   ...over,
 });
 
 describe("History", () => {
   it("shows empty state when there are no notes", () => {
-    render(<History notes={[]} onDelete={vi.fn()} />);
+    render(<History notes={[]} {...props()} />);
     expect(screen.getByText("editor.emptyHistory")).toBeInTheDocument();
   });
 
   it("renders note content and calls delete", () => {
     const onDelete = vi.fn();
-    render(<History notes={[note()]} onDelete={onDelete} />);
+    render(<History notes={[note()]} {...props({ onDelete })} />);
     expect(screen.getByTestId("md")).toHaveTextContent("hello");
     expect(screen.getByText("2024-01-01 12:00")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("delete"));
     expect(onDelete).toHaveBeenCalledWith(1);
+  });
+
+  it("edits a note inline and saves on Enter", () => {
+    const onEdit = vi.fn();
+    render(<History notes={[note()]} {...props({ onEdit })} />);
+    fireEvent.click(screen.getByLabelText("editor.edit"));
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "updated" } });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(onEdit).toHaveBeenCalledWith(1, "updated");
+  });
+
+  it("tints a note when a color swatch is picked", () => {
+    const onColor = vi.fn();
+    render(<History notes={[note()]} {...props({ onColor })} />);
+    fireEvent.click(screen.getAllByLabelText("editor.color")[0]);
+    expect(onColor).toHaveBeenCalledWith(1, "#4caf50");
   });
 
   it("renders attachments", () => {
@@ -71,7 +96,7 @@ describe("History", () => {
             ],
           }),
         ]}
-        onDelete={vi.fn()}
+        {...props()}
       />,
     );
     expect(screen.getByTestId("attachment")).toHaveTextContent("abc.png");
@@ -87,7 +112,7 @@ describe("History", () => {
           note({ id: 2, content_md: "second" }),
           note({ id: 3, content_md: "third" }),
         ]}
-        onDelete={vi.fn()}
+        {...props()}
       />,
     );
     const rendered = screen.getAllByTestId("md").map((el) => el.textContent);
@@ -95,7 +120,7 @@ describe("History", () => {
   });
 
   it("renders the scrollable history list container", () => {
-    render(<History notes={[note()]} onDelete={vi.fn()} />);
+    render(<History notes={[note()]} {...props()} />);
     expect(document.querySelector("ul.history")).toBeInTheDocument();
   });
 });

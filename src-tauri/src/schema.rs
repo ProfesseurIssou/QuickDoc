@@ -19,6 +19,7 @@ diesel::table! {
         content_md -> Text,
         created_at -> Text,
         updated_at -> Text,
+        color -> Nullable<Text>,
     }
 }
 

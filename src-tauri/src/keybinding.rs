@@ -22,7 +22,6 @@ pub fn defaults() -> Vec<(&'static str, &'static str)> {
     vec![
         ("toggle_panel", "Ctrl+Alt+Space"),
         ("cycle_projects", "Ctrl+Alt+P"),
-        ("save_note", "Ctrl+Enter"),
         ("select_project_1", "Ctrl+Shift+1"),
         ("select_project_2", "Ctrl+Shift+2"),
         ("select_project_3", "Ctrl+Shift+3"),

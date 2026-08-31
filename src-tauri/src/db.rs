@@ -27,10 +27,8 @@ impl Db {
     /// Open (or create) the database at `path`, enable WAL, run pending
     /// migrations, and seed defaults.
     pub fn init(path: &Path) -> anyhow::Result<Self> {
-        let mut conn = SqliteConnection::establish(
-            &path.to_string_lossy()
-        )
-        .with_context(|| format!("opening sqlite at {}", path.display()))?;
+        let mut conn = SqliteConnection::establish(&path.to_string_lossy())
+            .with_context(|| format!("opening sqlite at {}", path.display()))?;
 
         // Better read concurrency; safe to ignore on read-only mounts.
         let _ = diesel::sql_query("PRAGMA journal_mode = WAL").execute(&mut conn);
@@ -48,10 +46,7 @@ impl Db {
 
 /// Insert the default "Inbox" project + default settings when the DB is empty.
 fn seed_defaults(conn: &mut SqliteConnection) {
-    let has_projects: i64 = projects::table
-        .count()
-        .first(conn)
-        .unwrap_or(0);
+    let has_projects: i64 = projects::table.count().first(conn).unwrap_or(0);
     if has_projects == 0 {
         let _ = diesel::insert_into(projects::table)
             .values(&(projects::name.eq("Inbox"), projects::sort_order.eq(0)))
@@ -100,6 +95,7 @@ struct NoteRow {
     content_md: String,
     created_at: String,
     updated_at: String,
+    color: Option<String>,
 }
 
 /// Frontend-facing note, with its attachments eagerly loaded.
@@ -111,6 +107,8 @@ pub struct Note {
     pub content_md: String,
     pub created_at: String,
     pub updated_at: String,
+    /// Optional tint (CSS hex color) applied to the note card in the history.
+    pub color: Option<String>,
     pub attachments: Vec<Attachment>,
 }
 
@@ -145,10 +143,7 @@ pub fn create_project(conn: &mut SqliteConnection, name: &str) -> QueryResult<Pr
     let next_order = max_order.unwrap_or(-1) + 1;
 
     diesel::insert_into(projects::table)
-        .values((
-            projects::name.eq(name),
-            projects::sort_order.eq(next_order),
-        ))
+        .values((projects::name.eq(name), projects::sort_order.eq(next_order)))
         .execute(conn)?;
 
     projects::table
@@ -202,12 +197,17 @@ pub fn list_notes(conn: &mut SqliteConnection, project_id: i32) -> QueryResult<V
             content_md: r.content_md,
             created_at: r.created_at,
             updated_at: r.updated_at,
+            color: r.color,
             attachments: by_note.remove(&r.id).unwrap_or_default(),
         })
         .collect())
 }
 
-pub fn create_note(conn: &mut SqliteConnection, project_id: i32, content_md: &str) -> QueryResult<Note> {
+pub fn create_note(
+    conn: &mut SqliteConnection,
+    project_id: i32,
+    content_md: &str,
+) -> QueryResult<Note> {
     diesel::insert_into(notes::table)
         .values((
             notes::project_id.eq(project_id),
@@ -226,6 +226,7 @@ pub fn create_note(conn: &mut SqliteConnection, project_id: i32, content_md: &st
         content_md: row.content_md,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        color: row.color,
         attachments: Vec::new(),
     })
 }
@@ -234,8 +235,20 @@ pub fn update_note(conn: &mut SqliteConnection, id: i32, content_md: &str) -> Qu
     diesel::update(notes::table.filter(notes::id.eq(id)))
         .set((
             notes::content_md.eq(content_md),
-            notes::updated_at.eq(diesel::dsl::sql::<diesel::sql_types::Text>("datetime('now')")),
+            notes::updated_at.eq(diesel::dsl::sql::<diesel::sql_types::Text>(
+                "datetime('now')",
+            )),
         ))
+        .execute(conn)
+}
+
+pub fn set_note_color(
+    conn: &mut SqliteConnection,
+    id: i32,
+    color: Option<&str>,
+) -> QueryResult<usize> {
+    diesel::update(notes::table.filter(notes::id.eq(id)))
+        .set(notes::color.eq(color))
         .execute(conn)
 }
 
@@ -299,8 +312,7 @@ pub(crate) mod tests {
     /// `pub(crate)` so sibling modules' tests can build a temp DB.
     pub(crate) fn test_db() -> (NamedTempFile, SqliteConnection) {
         let file = NamedTempFile::new().unwrap();
-        let mut conn =
-            SqliteConnection::establish(&file.path().to_string_lossy()).unwrap();
+        let mut conn = SqliteConnection::establish(&file.path().to_string_lossy()).unwrap();
         conn.run_pending_migrations(MIGRATIONS).unwrap();
         seed_defaults(&mut conn);
         (file, conn)
@@ -312,7 +324,10 @@ pub(crate) mod tests {
         let projects = list_projects(&mut conn).unwrap();
         assert_eq!(projects.len(), 1);
         assert_eq!(projects[0].name, "Inbox");
-        assert_eq!(get_setting(&mut conn, "panel_side").unwrap().as_deref(), Some("right"));
+        assert_eq!(
+            get_setting(&mut conn, "panel_side").unwrap().as_deref(),
+            Some("right")
+        );
     }
 
     #[test]
@@ -333,11 +348,31 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn note_color_roundtrip() {
+        let (_f, mut conn) = test_db();
+        let project = list_projects(&mut conn).unwrap().pop().unwrap();
+        let note = create_note(&mut conn, project.id, "hello").unwrap();
+        assert_eq!(note.color, None);
+
+        set_note_color(&mut conn, note.id, Some("#4caf50")).unwrap();
+        let loaded = list_notes(&mut conn, project.id).unwrap();
+        assert_eq!(loaded[0].color.as_deref(), Some("#4caf50"));
+
+        // Setting None clears the tint.
+        set_note_color(&mut conn, note.id, None).unwrap();
+        let loaded = list_notes(&mut conn, project.id).unwrap();
+        assert_eq!(loaded[0].color, None);
+    }
+
+    #[test]
     fn settings_upsert_overwrites() {
         let (_f, mut conn) = test_db();
         set_setting(&mut conn, "locale", "fr").unwrap();
         set_setting(&mut conn, "locale", "en").unwrap(); // overwrite, not duplicate
-        assert_eq!(get_setting(&mut conn, "locale").unwrap().as_deref(), Some("en"));
+        assert_eq!(
+            get_setting(&mut conn, "locale").unwrap().as_deref(),
+            Some("en")
+        );
         let all = get_all_settings(&mut conn).unwrap();
         assert_eq!(all.iter().filter(|(k, _)| k == "locale").count(), 1);
     }

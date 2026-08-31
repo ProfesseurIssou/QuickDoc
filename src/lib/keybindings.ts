@@ -1,6 +1,5 @@
 // Keybinding manager: register global shortcuts from settings and dispatch
-// actions as events the app listens to. `save_note` is handled inside the
-// editor (window-level), so we skip it here.
+// actions as events the app listens to.
 
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
@@ -35,7 +34,7 @@ let initialized = false;
 /**
  * Register all global shortcuts from the given keybinding map. Clears any
  * previously registered shortcuts first. Skips actions that don't map to a
- * global (e.g. save_note, handled in-window).
+ * global.
  */
 export async function applyKeybindings(map: KeybindingMap): Promise<void> {
   await unregisterAll();
@@ -44,7 +43,6 @@ export async function applyKeybindings(map: KeybindingMap): Promise<void> {
   });
   for (const [action, accel] of Object.entries(resolved)) {
     if (!isGlobalAction(action)) continue;
-    if (accel === map.save_note) continue;
     try {
       if (!(await isRegistered(accel))) {
         await register(accel, () => {
@@ -58,7 +56,11 @@ export async function applyKeybindings(map: KeybindingMap): Promise<void> {
 }
 
 function isGlobalAction(action: string): action is GlobalAction {
-  return action.startsWith("select_project_") || action === "toggle_panel" || action === "cycle_projects";
+  return (
+    action.startsWith("select_project_") ||
+    action === "toggle_panel" ||
+    action === "cycle_projects"
+  );
 }
 
 /** Load saved keybindings (merged with defaults) and register them. */
@@ -112,7 +114,9 @@ export async function resetKeybindings(): Promise<KeybindingMap> {
 }
 
 /** Subscribe to global shortcut actions. Returns an unsubscribe function. */
-export function onAction(handler: (action: GlobalAction) => void): Promise<() => void> {
+export function onAction(
+  handler: (action: GlobalAction) => void,
+): Promise<() => void> {
   return listen<string>(SHORTCUT_EVENT, (e) => {
     if (e.payload && isGlobalAction(e.payload)) handler(e.payload);
   });

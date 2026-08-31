@@ -8,6 +8,9 @@
     "save": "Save",
     "preview": "Preview",
     "write": "Write",
+    "edit": "Edit note",
+    "cancel": "Cancel",
+    "color": "Note color",
     "emptyHistory": "No notes yet."
   },
   "projects": {
@@ -37,7 +40,6 @@
     "back": "Back",
     "actions": {
       "toggle_panel": "Toggle panel",
-      "save_note": "Save note",
       "cycle_projects": "Cycle projects",
       "select_project_1": "Select project 1",
       "select_project_2": "Select project 2",

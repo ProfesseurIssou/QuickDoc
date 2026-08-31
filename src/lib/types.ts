@@ -15,6 +15,8 @@ export interface Note {
   content_md: string;
   created_at: string;
   updated_at: string;
+  /** Optional tint (CSS hex color) applied to the note card in the history. */
+  color: string | null;
   attachments: Attachment[];
 }
 
@@ -43,7 +45,6 @@ export type KeybindingMap = Record<string, string>;
 export const DEFAULT_KEYBINDINGS: KeybindingMap = {
   toggle_panel: "Ctrl+Alt+Space",
   cycle_projects: "Ctrl+Alt+P",
-  save_note: "Ctrl+Enter",
   select_project_1: "Ctrl+Shift+1",
   select_project_2: "Ctrl+Shift+2",
   select_project_3: "Ctrl+Shift+3",

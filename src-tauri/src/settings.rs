@@ -56,6 +56,6 @@ mod tests {
         let kb: serde_json::Value =
             serde_json::from_str(d.get(keys::KEYBINDINGS).unwrap()).unwrap();
         assert_eq!(kb["toggle_panel"], "Ctrl+Alt+Space");
-        assert_eq!(kb["save_note"], "Ctrl+Enter");
+        assert!(kb.get("save_note").is_none());
     }
 }

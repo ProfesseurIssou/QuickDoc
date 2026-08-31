@@ -8,6 +8,9 @@
     "save": "Enregistrer",
     "preview": "Aperçu",
     "write": "Écrire",
+    "edit": "Modifier la note",
+    "cancel": "Annuler",
+    "color": "Couleur de la note",
     "emptyHistory": "Aucune note pour le moment."
   },
   "projects": {
@@ -37,7 +40,6 @@
     "back": "Retour",
     "actions": {
       "toggle_panel": "Afficher/Masquer le panneau",
-      "save_note": "Enregistrer la note",
       "cycle_projects": "Parcourir les projets",
       "select_project_1": "Sélectionner le projet 1",
       "select_project_2": "Sélectionner le projet 2",

@@ -17,18 +17,16 @@ mod schema;
 mod settings;
 mod window;
 
+use diesel::prelude::SqliteConnection;
 use std::collections::BTreeMap;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, State, WebviewWindow,
 };
-use tauri_plugin_global_shortcut::{
-    Builder as ShortcutBuilder, GlobalShortcutExt, Shortcut, ShortcutState,
-};
-use tauri_plugin_single_instance::init as single_instance_init;
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
-use diesel::prelude::SqliteConnection;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_single_instance::init as single_instance_init;
 
 use crate::window::PanelSide;
 
@@ -45,10 +43,9 @@ fn dock_window(app: AppHandle, db: State<'_, db::Db>, side: Option<String>) -> t
     match side {
         Some(raw) => window::dock_primary(&app, PanelSide::parse(&raw)),
         None => {
-            let mut conn = db
-                .0
-                .lock()
-                .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("db lock poisoned: {e}")))?;
+            let mut conn =
+                db.0.lock()
+                    .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("db lock poisoned: {e}")))?;
             window::dock_primary_from_db(&app, &mut conn)
         }
     }
@@ -183,9 +180,7 @@ fn render_export_html(
 /// binding that can't be parsed. Used by the frontend before registering
 /// shortcuts so bad user input is tolerated gracefully.
 #[tauri::command]
-fn resolve_keybindings(
-    bindings: BTreeMap<String, String>,
-) -> BTreeMap<String, String> {
+fn resolve_keybindings(bindings: BTreeMap<String, String>) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
     for (action, raw) in bindings {
         if let Some(acc) = keybinding::to_accelerator(&raw) {
@@ -204,10 +199,7 @@ fn with_db<F, T>(db: &State<'_, db::Db>, f: F) -> Result<T, String>
 where
     F: FnOnce(&mut SqliteConnection) -> Result<T, diesel::result::Error>,
 {
-    let mut conn = db
-        .0
-        .lock()
-        .map_err(|e| format!("db lock poisoned: {e}"))?;
+    let mut conn = db.0.lock().map_err(|e| format!("db lock poisoned: {e}"))?;
     f(&mut conn).map_err(|e| e.to_string())
 }
 
@@ -239,13 +231,23 @@ fn db_list_notes(db: State<'_, db::Db>, project_id: i32) -> Result<Vec<db::Note>
 }
 
 #[tauri::command]
-fn db_create_note(db: State<'_, db::Db>, project_id: i32, content_md: String) -> Result<db::Note, String> {
+fn db_create_note(
+    db: State<'_, db::Db>,
+    project_id: i32,
+    content_md: String,
+) -> Result<db::Note, String> {
     with_db(&db, |c| db::create_note(c, project_id, &content_md))
 }
 
 #[tauri::command]
 fn db_update_note(db: State<'_, db::Db>, id: i32, content_md: String) -> Result<(), String> {
     with_db(&db, |c| db::update_note(c, id, &content_md))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_set_note_color(db: State<'_, db::Db>, id: i32, color: Option<String>) -> Result<(), String> {
+    with_db(&db, |c| db::set_note_color(c, id, color.as_deref()))?;
     Ok(())
 }
 
@@ -263,7 +265,9 @@ fn db_add_attachment(
     mime: String,
     file_name: String,
 ) -> Result<db::Attachment, String> {
-    with_db(&db, |c| db::add_attachment(c, note_id, &kind, &mime, &file_name))
+    with_db(&db, |c| {
+        db::add_attachment(c, note_id, &kind, &mime, &file_name)
+    })
 }
 
 /// All settings as a flat `{ key: value }` object (values are always strings).
@@ -307,17 +311,12 @@ fn on_shortcut(app: &AppHandle, action: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // The default toggle hotkey is registered through the global-shortcut
-    // plugin builder. The frontend re-registers the full set (including project
-    // shortcuts) once it has read settings.
-    let toggle_plugin = ShortcutBuilder::default()
-        .with_handler(move |app, _sc, event| {
-            if event.state == ShortcutState::Pressed {
-                on_shortcut(app, "toggle_panel");
-            }
-        })
-        .build();
-
+    // The default toggle hotkey is registered in setup() with a dedicated
+    // handler below. The frontend re-registers the full set (including project
+    // shortcuts) once it has read settings. Do NOT use the plugin builder's
+    // with_handler fallback here: it fires for EVERY shortcut on top of their
+    // own handlers, which used to toggle (close) the panel whenever a project
+    // shortcut was pressed while the panel was open.
     tauri::Builder::default()
         // Must be the first plugin: a second launch (accidental double-open,
         // re-pinned shortcut) surfaces the existing panel instead of starting
@@ -328,7 +327,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
-        .plugin(toggle_plugin)
+        .plugin(tauri_plugin_global_shortcut::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -355,9 +354,8 @@ pub fn run() {
             let db_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&db_dir)?;
             let db_path = db_dir.join("quickdoc.sqlite");
-            let db = db::Db::init(&db_path).map_err(|e| {
-                tauri::Error::Anyhow(anyhow::anyhow!("database init: {e}"))
-            })?;
+            let db = db::Db::init(&db_path)
+                .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("database init: {e}")))?;
 
             // Dock the panel on startup to the persisted side (the frontend
             // may re-dock later if settings changed since last launch). Done
@@ -450,6 +448,7 @@ pub fn run() {
             db_list_notes,
             db_create_note,
             db_update_note,
+            db_set_note_color,
             db_delete_note,
             db_add_attachment,
             db_get_all_settings,

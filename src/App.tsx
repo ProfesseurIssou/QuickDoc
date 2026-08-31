@@ -19,7 +19,9 @@ import {
   listProjects,
   renameProject as dbRenameProject,
   seedDefaults,
+  setNoteColor,
   setSetting,
+  updateNote as dbUpdateNote,
 } from "./lib/db";
 import { initKeybindings, onAction } from "./lib/keybindings";
 import { DEFAULT_LOCALE, Note, Project } from "./lib/types";
@@ -78,8 +80,7 @@ export default function App() {
 
       const list = await reloadProjects();
       const savedActive = await getSetting("active_project_id");
-      const initial =
-        list.find((p) => p.id === Number(savedActive)) ?? list[0];
+      const initial = list.find((p) => p.id === Number(savedActive)) ?? list[0];
       if (initial) await selectProject(initial.id);
 
       // Background update check: download now, install on quit.
@@ -148,6 +149,20 @@ export default function App() {
   // ---- editor / project handlers ------------------------------------------
   const onNoteSaved = useCallback((note: Note) => {
     setNotes((prev) => [...prev, note]);
+  }, []);
+
+  const onEditNote = useCallback(async (id: number, contentMd: string) => {
+    const text = contentMd.trim();
+    if (!text) return;
+    await dbUpdateNote(id, contentMd);
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, content_md: contentMd } : n)),
+    );
+  }, []);
+
+  const onNoteColor = useCallback(async (id: number, color: string | null) => {
+    await setNoteColor(id, color);
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, color } : n)));
   }, []);
 
   const onDeleteNote = useCallback(async (id: number) => {
@@ -226,9 +241,7 @@ export default function App() {
 
   // Focus the editor when the panel becomes visible.
   const focusEditor = () => {
-    const ta = document.querySelector<HTMLTextAreaElement>(
-      ".editor textarea",
-    );
+    const ta = document.querySelector<HTMLTextAreaElement>(".editor textarea");
     ta?.focus();
   };
 
@@ -279,7 +292,12 @@ export default function App() {
             onRename={onRenameProject}
             onDelete={onDeleteProject}
           />
-          <History notes={notes} onDelete={(id) => void onDeleteNote(id)} />
+          <History
+            notes={notes}
+            onDelete={(id) => void onDeleteNote(id)}
+            onEdit={(id, content) => void onEditNote(id, content)}
+            onColor={(id, color) => void onNoteColor(id, color)}
+          />
           {activeId !== null && (
             <NoteEditor projectId={activeId} onSaved={onNoteSaved} />
           )}

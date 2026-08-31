@@ -1,7 +1,7 @@
 {
   "name": "quickdoc",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.5.0",
   "type": "module",
   "description": "QuickDoc - zero-friction, instant note-taking utility",
   "engines": {

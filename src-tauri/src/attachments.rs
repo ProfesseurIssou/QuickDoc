@@ -102,7 +102,10 @@ mod tests {
     fn kind_from_mime_classification() {
         assert_eq!(kind_from_mime("image/png"), AttachmentKind::Image);
         assert_eq!(kind_from_mime("video/mp4"), AttachmentKind::Video);
-        assert_eq!(kind_from_mime("application/octet-stream"), AttachmentKind::Image);
+        assert_eq!(
+            kind_from_mime("application/octet-stream"),
+            AttachmentKind::Image
+        );
     }
 
     #[test]

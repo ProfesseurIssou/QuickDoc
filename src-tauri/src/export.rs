@@ -72,7 +72,9 @@ pub fn referenced_assets(project: &ExportProject) -> Vec<String> {
     let mut out = Vec::new();
     for note in &project.notes {
         for att in &note.attachments {
-            if AttachmentKind::parse(&att.kind) == AttachmentKind::Image && seen.insert(att.file_name.clone()) {
+            if AttachmentKind::parse(&att.kind) == AttachmentKind::Image
+                && seen.insert(att.file_name.clone())
+            {
                 out.push(att.file_name.clone());
             }
         }

@@ -51,7 +51,11 @@ pub fn dock_position(
 }
 
 /// Resize the panel to full height of the given monitor and dock it to `side`.
-pub fn dock_to_edge(window: &WebviewWindow, monitor: &Monitor, side: PanelSide) -> tauri::Result<()> {
+pub fn dock_to_edge(
+    window: &WebviewWindow,
+    monitor: &Monitor,
+    side: PanelSide,
+) -> tauri::Result<()> {
     let scale = monitor.scale_factor();
     let mon_size = monitor.size();
     let mon_pos = monitor.position();

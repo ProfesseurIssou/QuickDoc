@@ -25,7 +25,9 @@ use tauri::{
     AppHandle, Emitter, Manager, State, WebviewWindow,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{
+    Builder as ShortcutBuilder, GlobalShortcutExt, Shortcut, ShortcutState,
+};
 use tauri_plugin_single_instance::init as single_instance_init;
 
 use crate::window::PanelSide;
@@ -327,7 +329,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
-        .plugin(tauri_plugin_global_shortcut::init())
+        .plugin(ShortcutBuilder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

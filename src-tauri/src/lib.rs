@@ -75,6 +75,20 @@ fn hide_panel(window: WebviewWindow) -> tauri::Result<()> {
     window.hide()
 }
 
+/// Show the panel if it is hidden (no-op when already visible). Used by
+/// project shortcuts so switching projects is visible even when the panel
+/// was closed.
+#[tauri::command]
+fn show_panel(app: AppHandle, db: State<'_, db::Db>, window: WebviewWindow) -> tauri::Result<()> {
+    if !window.is_visible().unwrap_or(false) {
+        let _ = dock_window(app, db, None);
+        window.show()?;
+        window.set_focus()?;
+        window.emit("quickdoc://focus-input", ())?;
+    }
+    Ok(())
+}
+
 /// Quit for real. Called by the frontend from its quit path, after it has had
 /// the chance to install a downloaded update (the updater's install() exits
 /// the process by itself, so it never falls back to this).
@@ -432,6 +446,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             dock_window,
             toggle_panel,
+            show_panel,
             hide_panel,
             quit_app,
             enable_autostart,

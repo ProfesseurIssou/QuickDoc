@@ -133,6 +133,8 @@ export default function App() {
       if (action === "cycle_projects") {
         const idx = projects.findIndex((p) => p.id === activeId);
         const next = projects[(idx + 1 + projects.length) % projects.length];
+        // Reveal the panel so the switch is visible even when it was hidden.
+        await invoke("show_panel");
         await selectProject(next.id);
         return;
       }
@@ -140,7 +142,10 @@ export default function App() {
       if (m) {
         const n = Number(m[1]) - 1;
         const target = projects[n];
-        if (target) await selectProject(target.id);
+        if (target) {
+          await invoke("show_panel");
+          await selectProject(target.id);
+        }
       }
     },
     [projects, activeId, selectProject],

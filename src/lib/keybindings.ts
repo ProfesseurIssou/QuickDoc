@@ -45,8 +45,9 @@ export async function applyKeybindings(map: KeybindingMap): Promise<void> {
     if (!isGlobalAction(action)) continue;
     try {
       if (!(await isRegistered(accel))) {
-        await register(accel, () => {
-          void emit(SHORTCUT_EVENT, action);
+        await register(accel, (event) => {
+          // The plugin reports both Pressed and Released; only react once.
+          if (event.state === "Pressed") void emit(SHORTCUT_EVENT, action);
         });
       }
     } catch {

@@ -1,6 +1,6 @@
 [package]
 name = "quickdoc"
-version = "0.5.0"
+version = "0.5.1"
 description = "QuickDoc - zero-friction, instant note-taking utility"
 authors = ["QuickDoc"]
 edition = "2021"

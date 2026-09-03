@@ -95,6 +95,19 @@ button.primary {
   color: var(--accent-fg);
   border-color: var(--accent);
 }
+button.success {
+  background: #2ea043;
+  color: #fff;
+  border-color: #2ea043;
+}
+button.success:hover {
+  background: #3fb950;
+  border-color: #3fb950;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 button.mini {
   padding: 2px 5px;
   font-size: 12px;

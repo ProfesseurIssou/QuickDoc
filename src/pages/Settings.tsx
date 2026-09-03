@@ -28,9 +28,10 @@ export default function Settings({
   const { t, i18n } = useTranslation();
   const [panelSide, setPanelSide] = useState<PanelSide>("right");
   const [locale, setLocale] = useState(i18n.language ?? "en");
-  const [bindings, setBindings] = useState<KeybindingMap>({ ...DEFAULT_KEYBINDINGS });
+  const [bindings, setBindings] = useState<KeybindingMap>({
+    ...DEFAULT_KEYBINDINGS,
+  });
   const [autostart, setAutostart] = useState(false);
-  const [autoUpdate, setAutoUpdate] = useState(true);
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -45,9 +46,11 @@ export default function Settings({
       setPanelSide(side);
       const loc = settings.locale ?? "en";
       setLocale(loc);
-      setAutoUpdate(settings.auto_update !== "false");
       try {
-        setBindings({ ...DEFAULT_KEYBINDINGS, ...JSON.parse(settings.keybindings ?? "{}") });
+        setBindings({
+          ...DEFAULT_KEYBINDINGS,
+          ...JSON.parse(settings.keybindings ?? "{}"),
+        });
       } catch {
         setBindings({ ...DEFAULT_KEYBINDINGS });
       }
@@ -82,11 +85,6 @@ export default function Settings({
     }
   };
 
-  const toggleAutoUpdate = async (enabled: boolean) => {
-    setAutoUpdate(enabled);
-    await setSetting("auto_update", enabled ? "true" : "false");
-  };
-
   const changeBinding = async (action: string, binding: string) => {
     const next = await updateKeybinding(action, binding);
     setBindings({ ...next });
@@ -109,7 +107,10 @@ export default function Settings({
 
       <section className="settings-row">
         <label>{t("settings.panelSide")}</label>
-        <select value={panelSide} onChange={(e) => void changeSide(e.target.value as PanelSide)}>
+        <select
+          value={panelSide}
+          onChange={(e) => void changeSide(e.target.value as PanelSide)}
+        >
           <option value="left">{t("settings.left")}</option>
           <option value="right">{t("settings.right")}</option>
         </select>
@@ -117,7 +118,10 @@ export default function Settings({
 
       <section className="settings-row">
         <label>{t("settings.language")}</label>
-        <select value={locale} onChange={(e) => void changeLocale(e.target.value)}>
+        <select
+          value={locale}
+          onChange={(e) => void changeLocale(e.target.value)}
+        >
           {Object.entries(SUPPORTED_LOCALES).map(([code, label]) => (
             <option key={code} value={code}>
               {label}
@@ -132,15 +136,6 @@ export default function Settings({
           type="checkbox"
           checked={autostart}
           onChange={(e) => void toggleAutostart(e.target.checked)}
-        />
-      </section>
-
-      <section className="settings-row">
-        <label>{t("settings.autoUpdate")}</label>
-        <input
-          type="checkbox"
-          checked={autoUpdate}
-          onChange={(e) => void toggleAutoUpdate(e.target.checked)}
         />
       </section>
 

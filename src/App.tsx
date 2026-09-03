@@ -27,7 +27,12 @@ import {
 import { initKeybindings, onAction } from "./lib/keybindings";
 import { DEFAULT_LOCALE, Note, Project } from "./lib/types";
 import { exportProjectHtml, exportProjectMarkdown } from "./lib/export";
-import { initAutoUpdate, installPendingUpdate } from "./lib/updater";
+import {
+  downloadAndInstall,
+  getAvailableUpdate,
+  initUpdateCheck,
+} from "./lib/updater";
+import type { Update } from "@tauri-apps/plugin-updater";
 import "./i18n";
 
 type View = "main" | "settings";
@@ -39,6 +44,8 @@ export default function App() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [toast, setToast] = useState<string>("");
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [updating, setUpdating] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
@@ -84,8 +91,11 @@ export default function App() {
       const initial = list.find((p) => p.id === Number(savedActive)) ?? list[0];
       if (initial) await selectProject(initial.id);
 
-      // Background update check: download now, install on quit.
-      await initAutoUpdate(() => showToast(t("updater.ready")));
+      // Background update check: only reveals the header Update button —
+      // nothing is downloaded until the user clicks it.
+      await initUpdateCheck(() => {
+        setUpdate(getAvailableUpdate());
+      });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -104,14 +114,9 @@ export default function App() {
     const unlistenFocus = listen("quickdoc://focus-input", () => {
       focusEditor();
     });
-    // Tray Quit: install the downloaded update (this exits the process), or
-    // quit directly when there is nothing to install.
+    // Tray Quit: quit directly (updates are user-triggered from the header).
     const unlistenQuit = listen("quickdoc://quit", () => {
-      void (async () => {
-        if (!(await installPendingUpdate())) {
-          await invoke("quit_app");
-        }
-      })();
+      void invoke("quit_app");
     });
     return () => {
       void unlistenAction.then((fn) => fn());
@@ -204,6 +209,22 @@ export default function App() {
     [reloadProjects, selectProject, activeId],
   );
 
+  // ---- update ---------------------------------------------------------------
+  const onUpdate = useCallback(async () => {
+    const current = update ?? getAvailableUpdate();
+    if (!current || updating) return;
+    setUpdating(true);
+    showToast(t("updater.downloading"));
+    const started = await downloadAndInstall(current);
+    // On Windows the process exits inside install(); if we get here the
+    // install failed — clear the button so the user can retry later.
+    if (!started) {
+      setUpdating(false);
+      setUpdate(null);
+      showToast(t("updater.failed"));
+    }
+  }, [update, updating, showToast, t]);
+
   // ---- export --------------------------------------------------------------
   const onExport = useCallback(
     async (kind: "md" | "html") => {
@@ -272,6 +293,17 @@ export default function App() {
       <header className="app-header" data-tauri-drag-region>
         <span className="brand">📝 {t("app.name")}</span>
         <span className="spacer" />
+        {update && (
+          <button
+            type="button"
+            className="success mini"
+            onClick={() => void onUpdate()}
+            disabled={updating}
+            title={t("updater.title", { version: update.version })}
+          >
+            {updating ? "…" : `↑ ${update.version}`}
+          </button>
+        )}
         <button
           type="button"
           className="ghost"

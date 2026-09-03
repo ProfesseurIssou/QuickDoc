@@ -24,6 +24,7 @@ export default function ProjectSwitcher({
 }: Props) {
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState("");
 
   const submit = () => {
@@ -33,46 +34,69 @@ export default function ProjectSwitcher({
     setAdding(false);
   };
 
+  const active = projects.find((p) => p.id === activeId);
+
   return (
     <div className="switcher">
-      <div className="switcher-head">
-        <span>{t("projects.title")}</span>
-        <button type="button" className="ghost" onClick={() => setAdding((a) => !a)}>
+      <div
+        className="switcher-head"
+        onClick={() => setCollapsed((c) => !c)}
+        title={t(collapsed ? "projects.expand" : "projects.collapse")}
+      >
+        <span>
+          {collapsed ? "▸" : "▾"} {t("projects.title")}
+          {collapsed && active && (
+            <span className="switcher-active"> — {active.name}</span>
+          )}
+        </span>
+        <button
+          type="button"
+          className="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCollapsed(false);
+            setAdding((a) => !a);
+          }}
+        >
           ＋
         </button>
       </div>
-      {adding && (
-        <div className="switcher-add">
-          <input
-            autoFocus
-            value={draft}
-            placeholder={t("projects.namePrompt")}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-              if (e.key === "Escape") setAdding(false);
-            }}
-          />
-          <button type="button" className="primary" onClick={submit}>
-            ✓
-          </button>
-        </div>
+      {!collapsed && (
+        <>
+          {adding && (
+            <div className="switcher-add">
+              <input
+                autoFocus
+                value={draft}
+                placeholder={t("projects.namePrompt")}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                  if (e.key === "Escape") setAdding(false);
+                }}
+              />
+              <button type="button" className="primary" onClick={submit}>
+                ✓
+              </button>
+            </div>
+          )}
+          <ul className="switcher-list">
+            {projects.map((p) => (
+              <li
+                key={p.id}
+                className={p.id === activeId ? "active" : undefined}
+                onClick={() => onSelect(p.id)}
+              >
+                <ProjectName
+                  project={p}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
-      <ul className="switcher-list">
-        {projects.map((p) => (
-          <li
-            key={p.id}
-            className={p.id === activeId ? "active" : undefined}
-            onClick={() => onSelect(p.id)}
-          >
-            <ProjectName
-              project={p}
-              onRename={onRename}
-              onDelete={onDelete}
-            />
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useTranslation } from "react-i18next";
 import NoteEditor from "./components/NoteEditor";
 import History from "./components/History";
@@ -228,6 +229,22 @@ export default function App() {
 
   const onLocaleChange = useCallback(() => {
     // Language already switched in Settings; nothing else to do.
+  }, []);
+
+  // Open http(s) links (e.g. in rendered notes) in the default browser
+  // instead of navigating the panel webview.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement | null)?.closest?.("a[href]");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") ?? "";
+      if (/^https?:\/\//i.test(href)) {
+        e.preventDefault();
+        void openUrl(href);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
   }, []);
 
   // Esc hides the panel (when not typing in an input).

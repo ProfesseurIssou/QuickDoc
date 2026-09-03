@@ -19,6 +19,8 @@
     "rename": "Renommer",
     "delete": "Supprimer",
     "namePrompt": "Nom du projet",
+    "collapse": "Réduire la liste des projets",
+    "expand": "Développer la liste des projets",
     "confirmDelete": "Supprimer ce projet et toutes ses notes ?"
   },
   "attachments": {

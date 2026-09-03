@@ -126,6 +126,12 @@ button.danger:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 2px 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.switcher-active {
+  text-transform: none;
+  letter-spacing: normal;
 }
 .switcher-add {
   display: flex;

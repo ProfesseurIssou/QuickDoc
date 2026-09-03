@@ -19,6 +19,8 @@
     "rename": "Rename",
     "delete": "Delete",
     "namePrompt": "Project name",
+    "collapse": "Collapse project list",
+    "expand": "Expand project list",
     "confirmDelete": "Delete this project and all its notes?"
   },
   "attachments": {

@@ -43,6 +43,8 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string>("");
   const [update, setUpdate] = useState<Update | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -268,9 +270,15 @@ export default function App() {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
-  // Esc hides the panel (when not typing in an input).
+  // Esc hides the panel (when not typing in an input); Ctrl+K focuses search.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "k" && e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
       if (e.key === "Escape" && view === "main") {
         const el = document.activeElement;
         const tag = el?.tagName?.toLowerCase();
@@ -281,6 +289,13 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [view]);
+
+  // Notes of the current project matching the search query (case-insensitive).
+  const filteredNotes = query.trim()
+    ? notes.filter((n) =>
+        n.content_md.toLowerCase().includes(query.trim().toLowerCase()),
+      )
+    : notes;
 
   // Focus the editor when the panel becomes visible.
   const focusEditor = () => {
@@ -346,8 +361,33 @@ export default function App() {
             onRename={onRenameProject}
             onDelete={onDeleteProject}
           />
+          {activeId !== null && (
+            <div className="search-bar">
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                placeholder={t("search.placeholder")}
+                aria-label={t("search.placeholder")}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc clears first; a second Esc falls through to hiding
+                  // the panel (the field must be blurred for that).
+                  if (e.key === "Escape") {
+                    if (query) setQuery("");
+                    else e.currentTarget.blur();
+                  }
+                }}
+              />
+              {query.trim() && (
+                <span className="search-count">
+                  {filteredNotes.length}/{notes.length}
+                </span>
+              )}
+            </div>
+          )}
           <History
-            notes={notes}
+            notes={filteredNotes}
             onDelete={(id) => void onDeleteNote(id)}
             onEdit={(id, content) => void onEditNote(id, content)}
             onColor={(id, color) => void onNoteColor(id, color)}

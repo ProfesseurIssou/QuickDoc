@@ -53,6 +53,9 @@
       "select_project_9": "Sélectionner le projet 9"
     }
   },
+  "search": {
+    "placeholder": "Rechercher dans les notes… (Ctrl+K)"
+  },
   "export": {
     "title": "Exporter",
     "markdown": "Exporter en Markdown",

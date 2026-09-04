@@ -226,6 +226,22 @@ textarea {
   padding: 2px 8px;
 }
 
+/* ---- note search ---- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 0;
+}
+.search-bar input {
+  flex: 1;
+}
+.search-count {
+  color: var(--fg-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 /* ---- history ---- */
 .history {
   list-style: none;

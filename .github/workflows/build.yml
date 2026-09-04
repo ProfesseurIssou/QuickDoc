@@ -155,6 +155,33 @@ jobs:
             node -e 'const fs=require("fs");const f="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(f,"utf8"));c.bundle.createUpdaterArtifacts=false;fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n")'
           fi
 
+      # Windows code signing (optional): when a certificate is configured via
+      # secrets, import the PFX into the runner's user store and point the
+      # Tauri bundler at its thumbprint so both NSIS and MSI installers get
+      # signed (with a timestamp). Without the secrets the build continues
+      # unsigned — antivirus/SmartScreen will flag those builds until the
+      # secrets are added.
+      # Required secrets:
+      #   WINDOWS_CERTIFICATE           base64-encoded .pfx file
+      #   WINDOWS_CERTIFICATE_PASSWORD  PFX export password
+      #   WINDOWS_CERTIFICATE_THUMBPRINT  SHA-1 thumbprint of the cert
+      - name: Prepare Windows code signing
+        env:
+          CERT: ${{ secrets.WINDOWS_CERTIFICATE }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          CERT_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        shell: pwsh
+        run: |
+          if (-not $env:CERT -or -not $env:CERT_PASSWORD -or -not $env:CERT_THUMBPRINT) {
+            Write-Output "::warning::Windows signing secrets missing (WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD, WINDOWS_CERTIFICATE_THUMBPRINT): building unsigned installers."
+            exit 0
+          }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", [Convert]::FromBase64String($env:CERT))
+          $pw = ConvertTo-SecureString -String $env:CERT_PASSWORD -Force -AsPlainText
+          Import-PfxCertificate -FilePath "$env:RUNNER_TEMP\cert.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $pw
+          Remove-Item "$env:RUNNER_TEMP\cert.pfx"
+          node -e 'const fs=require("fs");const f="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(f,"utf8"));c.bundle.windows={...c.bundle.windows,certificateThumbprint:process.env.CERT_THUMBPRINT,digestAlgorithm:"sha256",timestampUrl:"http://timestamp.digicert.com"};fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n")'
+
       # Builds the frontend (vite) + the Rust binary + the Windows installer.
       # When TAG is set it publishes/updates the GitHub Release and attaches
       # the raw installers; otherwise it only builds. With the signing key
